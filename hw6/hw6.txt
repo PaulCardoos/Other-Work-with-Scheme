@@ -1,0 +1,254 @@
+I realized i can access any part of global environment. some test cases that really helped
+me understand the code
+
+
+> tge
+(((car cdr cons null?) (primitive #<procedure:mcar>) (primitive #<procedure:mcdr>) (primitive #<procedure:mcons>) (primitive #<procedure:null?>)))
+> (car tge)
+((car cdr cons null?) (primitive #<procedure:mcar>) (primitive #<procedure:mcdr>) (primitive #<procedure:mcons>) (primitive #<procedure:null?>))
+> (caaar tge)
+car
+> (equal? 'car (caaar tge))
+#t
+> (cdaar tge)
+(cdr cons null?)
+> (cdr tge)
+()
+> 
+
+from here I was able to realize that each frame is basically a pair of lists. 
+
+ Install Special form :
+I implemented the lookup the special forms table with a 1D table straight 
+from the textbook with a few modifications consisting of changing the name 
+of the function and wrapping the table inside the insert! function so that
+it only took parameters. 
+
+Next, i install all the special forms which is essentially just inserting them
+into the table. One side is the quoted name of function the other side is 
+the lambda procedure. I moved all the special forms that xeval was checking for 
+and inserted them into the table which significantly shorted xeval and clean it up
+a bit. 
+
+(define (xeval exp env)
+  (cond ((self-evaluating? exp) exp)
+        ((variable? exp)
+         (cond((lookup-action exp)
+               (display "Special form: ")
+               exp)
+              (else (lookup-variable-value exp env))))
+
+Install primitive procedures:
+
+
+This one was challenging trying to figure out how primitive procedures were stored and how
+I could store them in the environment without having a table. I broke this problem by
+typing the-global-environment into the shell. I figured that out with the follow test case
+
+
+> the-global-environment
+(((car cdr cons null?) (primitive #<procedure:mcar>) (primitive #<procedure:mcdr>) (primitive #<procedure:mcons>) (primitive #<procedure:null?>)))
+
+Also this helped me understand how the computer recognizes what is a primitive procedure
+
+(define (primitive-procedure? proc)
+  (tagged-list? proc 'primitive))
+
+we were told to get rid of this so I had to tag it myself that is why i have (list 'primitive (cadr exp))
+in install primitive procedure function
+
+
+Realized i am trying to bind a new variable to a frame in the environment and saw on piazza that we had add-binding-to-frame!
+So I was able to implement install-primitive-procedures cleanly when i knew this function.
+
+we I finally coded everything I tried to run and the program threw an error becuase primitive-names,
+primitive-objects were not defined in setup. So i learned how the environment was setting up 
+and that we were basically implement our primitive procedures into the empty environment. So 
+all those got changed to the empty environment and now we have no more error.
+
+(define (setup-environment)
+  (let ((initial-env
+         (xtend-environment the-empty-environment
+                            the-empty-environment
+                            the-empty-environment)))
+
+
+This is a simple corner case which I implemented straight in xeval because 
+the code already checks for a vairable. So if that is true I could easily sift through the
+special forms table and intercept that process before we ever name a variable the name 
+of a special form. Had a difficult time with 5 trying to implement it in xeval as you 
+can see all the commented out code below.  
+
+(define (xeval exp env)
+  (cond ((self-evaluating? exp) exp)
+        ((variable? exp)
+         (cond((lookup-action exp)
+               (display "Special form: ")
+               exp)
+              (else (lookup-variable-value exp env))))
+        ((lookup-action (car exp))
+         ((lookup-action (car exp)) exp env))
+         ;(let*((arg (car(cdr exp))))
+           ;(display "This is the expression")
+           ;(display exp)
+           ;(newline)
+           ;(display "this is car(cdr)")
+           ;(display arg)
+           ;(cond ((lookup-action arg)
+            ;      error "cannot re-assign special form")
+                 ;(else ((lookup-action (car exp)) exp env)))))
+        ((application? exp)
+         ;(display "I got here1")
+         (xapply (xeval (operator exp) 
+
+that is why i move it to the lambda functions for set and define because
+it was explicitly stated in piazza that for the sake of this homework the
+ only special forms that can assign value are set! and define.   
+
+ (install-special-form 'set! (lambda (exp env)
+                                (cond((lookup-action (cadr exp))
+                                      "cannot reassign special form")
+                                     (else (eval-assessment exp env)))))
+(install-special-form 'define (lambda (exp env)
+                                (cond((lookup-action (cadr exp))
+                                      "cannot reassign special form")
+                                     (else (eval-definition exp env)))))
+
+Lastly, I solved test cases for defined and locally defined. I made a function 
+define that checks if a variable exists in a frame. Which basically just checks if
+it exists in a list. If it does return true if not return false. I thought locally 
+defined would be easier because we only have to check one environment so I started
+out with this. Once i passed all the test cases for locally defined i did the same thing
+for defined except moving up a frame each time.
+
+I know I didnt finish and while Obyat and you have been very helpful. It is not 
+the same as studying at school and being able to get the help necessary. I dont
+necessarily understand why my lambda function is malfunctioning. 
+
+Need to remove variables from these bindings 
+
+> (caar tge)
+(equal? + - / * display null? mycar cdr cons)
+> (cdar tge)
+((primitive #<procedure:equal?>)
+ (primitive #<procedure:+>)
+ (primitive #<procedure:->)
+ (primitive #<procedure:/>)
+ (primitive #<procedure:*>)
+ (primitive #<procedure:mdisplay>)
+ (primitive #<procedure:null?>)
+ (primitive #<procedure:mcar>)
+ (primitive #<procedure:mcdr>)
+ (primitive #<procedure:mcons>))
+
+> (cddar tge)
+((primitive #<procedure:+>)
+ (primitive #<procedure:->)
+ (primitive #<procedure:/>)
+ (primitive #<procedure:*>)
+ (primitive #<procedure:mdisplay>)
+ (primitive #<procedure:null?>)
+ (primitive #<procedure:mcar>)
+ (primitive #<procedure:mcdr>)
+ (primitive #<procedure:mcons>))
+> (caddar tge)
+(primitive #<procedure:+>)
+> (cadar tge)
+(primitive #<procedure:equal?>)
+
+I first started out thinking that these functions are related to make-unbound somehow
+;(define (make-frame variables values)  (cons variables values))
+;(define (frame-variables frame) (car frame))
+;(define (frame-values frame) (cdr frame))
+;add-binding-to-frame! 
+
+using this I experimented in scheme trying to located primitive variables and
+primitive values
+
+> (frame-variables (first-frame tge))
+(equal? + - / * display null? mycar cdr cons)
+
+> (frame-values (first-frame tge))
+((primitive #<procedure:equal?>)
+ (primitive #<procedure:+>)
+ (primitive #<procedure:->)
+ (primitive #<procedure:/>)
+ (primitive #<procedure:*>)
+ (primitive #<procedure:mdisplay>)
+ (primitive #<procedure:null?>)
+ (primitive #<procedure:mcar>)
+ (primitive #<procedure:mcdr>)
+ (primitive #<procedure:mcons>))
+> 
+
+> (first-frame (caar tge))
+equal?
+> (first-frame (cadar tge))
+primitive
+> (first-frame (cdar tge))
+(primitive #<procedure:equal?>)
+> 
+
+So now we have a way to isolate frame variables and frame values. And 
+similarly we also have a way to isolate a 'primitive tag and its corresponding 
+procedure stuck at this moment for a second, what am I trying to do in this problem?
+
+1.) find the variable in the frame
+2.) find the corresponding value in frame
+3.) unbound the variable in frame 
+4.) unbound corresponding value 
+
+So im not sure how to delete a variable. Maybe I will try to set the value to zero
+to fill the space and that way if you guys test if it is in the environment it will
+return false becuase it will be a diiferent value. 
+
+ok this is the error i am getting
+
+set!: not an identifier in: (car vars)
+
+tge
+(((0 + - / * display null? mycar cdr cons)
+
+getting somewhere with this i guess.
+
+This seems to work. Will test if setting it to zero is a viable option.
+
+Yes you can use set!
+But you have to be careful only to remove this particular variable and not everything else...
+                                                -Nurit Haspel 
+This was my motivation to set the car twice. Although I am getting an error message now that says
+bad primtive. (car vars)
+
+*****the test case obyat gave us to test locally defined*****
+
+s450==> (define f
+(lambda (a b)
+(display (locally-defined? a))
+(display (locally-defined? b))
+(locally-make-unbound! a)
+(locally-make-unbound! b)
+(display (locally-defined? a))
+(display (locally-defined? b))
+)
+)
+f
+
+s450==> (f 12 12)
+#t#t
+var: (a b)
+vals: (12 12)
+current: a
+expression: a
+var: (b)
+vals: (12)
+current: b
+expression: b
+#f#f#<void>
+
+*****output*****
+#t#t#f#f
+Oh well, I 
+hope you have mercy on me when you grade this. Peace and Love.
+
+
+

@@ -1,0 +1,118 @@
+Part 1 number 1
+
+didnt read the chapter just found how thunks are implemented in chapter 4.2
+and modeled my thunks after that. no major changes just changed how it is tagged.
+If my program sees a 'delayed tag it will know to  delay this evaluation other 
+wise it will proceed normally. I was in office hours trying to figure out where
+my program will need to detect if it is a thunk or not. 
+
+
+In order to test my thunks i used a test that Professor Nurit Haspel gave me
+and it was
+
+(define (foo x (delayed y)
+   (if (equal? x 3)
+      1
+      y))
+
+and to test this function with the following test, where if the arguement was 
+not delayed the code would break. Having problems finding where that 'delayed tag actaully 
+is stored when you define the foo function. I can see it when i car 
+
+> (cadar tge)
+#0=(procedure
+    (x (delayed y))
+    ((if (equal? x 3) 1 y))
+    (((foo exit equal? + - / * display null? car cdr cons)
+      #0#
+      (primitive #<procedure:exit>)
+      (primitive #<procedure:equal?>)
+      (primitive #<procedure:+>)
+      (primitive #<procedure:->)
+      (primitive #<procedure:/>)
+      (primitive #<procedure:*>)
+      (primitive #<procedure:mdisplay>)
+      (primitive #<procedure:null?>)
+      (primitive #<procedure:mcar>)
+      (primitive #<procedure:mcdr>)
+      (primitive #<procedure:mcons>))))
+
+> (procedure-body (lookup-variable-value 'foo tge))
+((if (equal? x 3) 1 y))
+> (procedure-parameters (lookup-variable-value 'foo tge))
+(x (delayed y))
+
+3 hours later and i found a solution to my problem. There are predefined procedure functions 
+I forgot about. so I will check in list-to-val if procedure is defined and if so i will
+save the parameters to a variables so i can match them with the ones being called. 
+
+This seems to be working now after i delay the arguement I need to thin where my thunk can be 
+evaluated. This actually worked ok until it ran a primtive procedure when the evaluation
+stopped because it had no parameters with the function. So i had to make three functions to process
+each separate case
+
+I spent three hours debugging a function that was named wrong but now it is working.
+
+Ok, now i will go back to homework 5 with streams and refresh myself on how streams are defined.
+So i will implement my streams pretty much exactly how they are implement in homework 5.
+
+;-------------------------------------
+;------- Dynamic Environment ---------
+;-------------------------------------
+
+I think the key to solving the dynamic environment what does xtend environment do and return?
+
+-xtend-environment creates a new frame with a set of variables and values, making the base-environment 
+the cdr of the new frame, also known as the enclosing-environment. We need to make sure that xtend-environment 
+actually returns the environment
+
+"you might be tempted to call xtend-environment twice from within xapply – once to extend
+the static environment and a second time to extend the dynamic environment."
+
+this was my initial thought and realized quickly that i was overwriting the static environment
+29:11 in lecture 19 we need to check whether it is tagged by the word dynamic. This made sense
+later on because how else would we know what is what. 
+
+im thinking to make a procedure that sets the dynamic environment and then duplicating the 
+
+
+
+
+trying to understand call/cc, here are some cases that helped me really 
+understand what call/cc is all about. The begin.scm file was helpful as 
+well. Going to start with part 2. After seeing the main loop example, I 
+think that it is doable. 
+
+(+ (call/cc
+    (lambda (k)
+      (k (* 3 4))))
+   5)
+
+(+ (* (call/cc
+    (lambda (k)
+      (k 3)))
+      4)
+   5)
+
+(+ (* (call/cc
+       (lambda (k)
+         (k 4)))
+      3)
+   5)
+
+
+   The more i analyze save_continuation.scm and do more research
+   I realized that continuations seem more and more like jump statements
+   in assembly.
+
+   > (main_loop)
+
+#<continuation>5
+Success: 5
+#<continuation>v
+v is not a number; try again.
+
+#<continuation>4
+Success: 4
+#<continuation>
+
